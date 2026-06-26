@@ -6,6 +6,7 @@
 
 - **一键部署** — 自动安装 3x-ui、扫描端口冲突并选择可用端口、配置 VLESS+Reality、开放防火墙、更新订阅文件，全部在一个 `deploy` 命令完成
 - **订阅同步** — 从每个节点的 API 拉取实时状态，重新生成 Clash YAML，订阅永远反映真实配置
+- **SNI / dest 解耦** — 客户端可继续使用 `servername: www.microsoft.com`，服务端默认把 REALITY `dest` 设为 `dl.google.com:443`，避免微软证书记录过大导致的 REALITY 握手失败
 - **NAT 支持** — `--nat 10000-10009` 自动在端口段内选择可用端口
 - **舰队状态** — 并行健康检查，显示所有节点的连通性和流量统计
 - **白名单模式** — 基于 [Loyalsoldier/clash-rules](https://github.com/Loyalsoldier/clash-rules) 的 rule-provider，国内域名/IP 自动直连，其余全走代理。AI 服务强制代理，规则每日自动更新
@@ -98,9 +99,10 @@ python3 scripts/fleet.py sync
 ## 技术备注
 
 - **Xray v26 密钥格式**：`x25519` 输出 `PrivateKey` / `Password`（= 公钥）/ `Hash32`。旧版输出 `Private key` / `Public key`。脚本兼容两种格式。
+- **REALITY 默认目标站**：`defaults.sni` 是客户端侧 SNI / `serverNames`，`defaults.reality_dest` 是服务端实际连接的 `dest`。默认保留 `www.microsoft.com` 作为客户端侧 SNI，但把 `dest` 设为 `dl.google.com:443`，规避 `www.microsoft.com` 证书记录长度超过 8192 导致的已知 Xray REALITY bug。
 - **3x-ui 安装脚本**是交互式的，无法可靠 pipe 输入。策略是先装默认配置，再通过 CLI 重置凭证。
-- **3x-ui API**：`POST /login` → 获取 session cookie → `/panel/api/inbounds/{add,update,del,list}`
-- **Reality 对非 VLESS 客户端返回 400** — 连通性检测时 400 = 节点正常。
+- **3x-ui API**：脚本优先通过本机 `apiToken` 调用 `/panel/api/inbounds/{add,update,del,list}`。
+- **Reality fallback 返回码**：连通性检测时 `200/301/302/400/404` 都可视为节点存活，具体取决于 `dest` 返回行为。
 - **端口冲突**是最常见的部署失败原因 — 脚本会在配置前先扫描端口。
 - **xray 二进制**路径自动检测（glob `/usr/local/x-ui/bin/xray-linux-*`），同时支持 amd64 和 arm64。
 

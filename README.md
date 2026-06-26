@@ -8,6 +8,7 @@ Manage multiple VPS proxy nodes from a single command line. Deploys [3x-ui](http
 
 - **One-command deploy** — installs 3x-ui, picks an available port (scans for conflicts first), configures VLESS+Reality, opens the firewall, and updates your subscription file. All in one `deploy`.
 - **Subscription sync** — queries every node's live API state and regenerates the Clash YAML, so the subscription always reflects reality.
+- **Decoupled SNI / dest** — clients can keep `servername: www.microsoft.com` while the server defaults REALITY `dest` to `dl.google.com:443`, avoiding Microsoft certificate-size related REALITY failures
 - **NAT support** — pass `--nat 10000-10009` and it picks the first free port in that range.
 - **Fleet status** — parallel health check across all nodes with traffic stats.
 - **Whitelist mode** — Uses [Loyalsoldier/clash-rules](https://github.com/Loyalsoldier/clash-rules) rule-providers for comprehensive China domain/IP direct routing, everything else proxied. AI services always proxied. Rules auto-update daily.
@@ -98,9 +99,10 @@ Users refresh their subscription in Clash Verge Rev to pick up the changes.
 ## Tech Notes
 
 - **Xray v26 key format**: `x25519` outputs `PrivateKey` / `Password` (= public key) / `Hash32`. Older versions use `Private key` / `Public key`. The script handles both.
+- **REALITY defaults**: `defaults.sni` is the client-facing SNI / `serverNames`, while `defaults.reality_dest` is the actual upstream `dest`. By default the project keeps `www.microsoft.com` as SNI but uses `dl.google.com:443` as `dest` to avoid the known Xray REALITY bug triggered by oversized Microsoft certificate records.
 - **3x-ui install script** is interactive and can't reliably receive piped input. We install with defaults, then reset credentials via the CLI.
-- **3x-ui API**: `POST /login` → session cookie → `/panel/api/inbounds/{add,update,del,list}`.
-- **Reality returns 400** to non-VLESS clients. The connectivity check treats 400 as "alive".
+- **3x-ui API**: the script prefers local `apiToken` auth for `/panel/api/inbounds/{add,update,del,list}`.
+- **Reality fallback status codes**: depending on the chosen `dest`, non-VLESS probes may return `200/301/302/400/404`. The connectivity check treats all of them as "alive".
 - **Port conflicts** are the #1 deploy failure. The script scans ports before configuring.
 
 ## License
